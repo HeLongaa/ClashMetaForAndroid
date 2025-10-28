@@ -6,6 +6,10 @@ on:
       release-tag:
         description: 'Release Tag (v2.x.x)'
         required: true
+      skip-signing:
+        description: 'Temporarily skip release signing (use debug signing). Set to true to skip.'
+        required: false
+        default: 'false'
 
 jobs:
   BuildRelease:
@@ -84,6 +88,7 @@ jobs:
           cp -f /etc/ssl/certs/ca-certificates.crt core/src/foss/golang/clash/component/ca/ca-certificates.crt
 
       - name: Signing properties
+        if: ${{ inputs.skip-signing != 'true' }}
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
@@ -93,9 +98,15 @@ jobs:
           echo keystore.password="$SIGNING_STORE_PASSWORD" > signing.properties
           echo key.alias="$SIGNING_KEY_ALIAS" >> signing.properties
           echo key.password="$SIGNING_KEY_PASSWORD" >> signing.properties
-            
-          echo "cat signing.properties"
-          cat signing.properties
+
+          echo "Created signing.properties (alias will be shown below for debug)."
+          # Print alias only (avoid printing passwords). This helps debug whether alias is correct.
+          grep '^key.alias=' signing.properties || true
+
+      - name: Skip signing notice
+        if: ${{ inputs.skip-signing == 'true' }}
+        run: |
+          echo "skip-signing is true — skipping creation of signing.properties. Build will use debug signing config."
 
       - name: Release Build
         if: success()
